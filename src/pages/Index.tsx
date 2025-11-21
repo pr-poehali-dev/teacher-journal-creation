@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -117,6 +117,18 @@ const Index = () => {
   const calculateAverage = (grades: { value: number }[]) => {
     if (grades.length === 0) return 0;
     return (grades.reduce((sum, g) => sum + g.value, 0) / grades.length).toFixed(1);
+  };
+
+  const allSubjects = useMemo(() => {
+    const subjects = new Set<string>();
+    students.forEach(student => {
+      student.grades.forEach(grade => subjects.add(grade.subject));
+    });
+    return Array.from(subjects);
+  }, [students]);
+
+  const getGradesBySubject = (student: Student, subject: string) => {
+    return student.grades.filter(g => g.subject === subject);
   };
 
   const getAttendanceRate = (attendance: { status: string }[]) => {
@@ -339,114 +351,182 @@ const Index = () => {
           <TabsContent value="grades" className="space-y-4 animate-fade-in">
             <Card>
               <CardHeader>
-                <CardTitle>Журнал оценок</CardTitle>
-                <CardDescription>Добавляйте оценки и комментарии к ним</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Журнал оценок</CardTitle>
+                    <CardDescription>Таблица успеваемости по предметам</CardDescription>
+                  </div>
+                  <Dialog open={isAddGradeOpen} onOpenChange={setIsAddGradeOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Icon name="Plus" className="mr-2" size={16} />
+                        Добавить оценку
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Добавить оценку</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Ученик</Label>
+                          <Select
+                            value={currentStudentId ? String(currentStudentId) : ''}
+                            onValueChange={(value) => setCurrentStudentId(parseInt(value))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Выберите ученика" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {students.map((student) => (
+                                <SelectItem key={student.id} value={String(student.id)}>
+                                  {student.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Предмет</Label>
+                          <Input
+                            placeholder="Математика, Русский язык..."
+                            value={newGrade.subject}
+                            onChange={(e) => setNewGrade({ ...newGrade, subject: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Оценка</Label>
+                          <Select
+                            value={String(newGrade.value)}
+                            onValueChange={(value) => setNewGrade({ ...newGrade, value: parseInt(value) })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="5">5 (отлично)</SelectItem>
+                              <SelectItem value="4">4 (хорошо)</SelectItem>
+                              <SelectItem value="3">3 (удовлетворительно)</SelectItem>
+                              <SelectItem value="2">2 (неудовлетворительно)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Дата</Label>
+                          <Input
+                            type="date"
+                            value={newGrade.date}
+                            onChange={(e) => setNewGrade({ ...newGrade, date: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Комментарий (необязательно)</Label>
+                          <Textarea
+                            placeholder="Добавьте комментарий к оценке..."
+                            value={newGrade.comment}
+                            onChange={(e) => setNewGrade({ ...newGrade, comment: e.target.value })}
+                          />
+                        </div>
+                        <Button 
+                          className="w-full" 
+                          onClick={() => {
+                            if (currentStudentId) {
+                              addGrade(currentStudentId);
+                              setCurrentStudentId(null);
+                            }
+                          }}
+                          disabled={!currentStudentId || !newGrade.subject}
+                        >
+                          Сохранить оценку
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  {students.map((student) => (
-                    <div key={student.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10 bg-primary text-primary-foreground">
-                            <AvatarFallback>{student.avatar}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <h4 className="font-semibold">{student.name}</h4>
-                            <p className="text-sm text-muted-foreground">Средний балл: {calculateAverage(student.grades)}</p>
-                          </div>
-                        </div>
-                        <Dialog open={isAddGradeOpen && currentStudentId === student.id} onOpenChange={(open) => {
-                          setIsAddGradeOpen(open);
-                          if (open) setCurrentStudentId(student.id);
-                        }}>
-                          <DialogTrigger asChild>
-                            <Button size="sm" onClick={() => setCurrentStudentId(student.id)}>
-                              <Icon name="Plus" className="mr-2" size={16} />
-                              Добавить оценку
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Добавить оценку для {student.name}</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <Label>Предмет</Label>
-                                <Input
-                                  placeholder="Математика, Русский язык..."
-                                  value={newGrade.subject}
-                                  onChange={(e) => setNewGrade({ ...newGrade, subject: e.target.value })}
-                                />
+                {students.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Icon name="BookOpen" size={48} className="mx-auto mb-4" />
+                    <p>Добавьте учеников для ведения журнала оценок</p>
+                  </div>
+                ) : allSubjects.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Icon name="GraduationCap" size={48} className="mx-auto mb-4" />
+                    <p>Добавьте первую оценку для создания журнала</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b-2">
+                          <th className="p-3 text-left font-semibold bg-muted/50 sticky left-0 z-10">Ученик</th>
+                          {allSubjects.map((subject, idx) => (
+                            <th key={idx} className="p-3 text-center font-semibold bg-muted/50 min-w-[120px]">
+                              {subject}
+                            </th>
+                          ))}
+                          <th className="p-3 text-center font-semibold bg-muted/50 min-w-[100px]">Средний балл</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {students.map((student) => (
+                          <tr key={student.id} className="border-b hover:bg-muted/30 transition-colors">
+                            <td className="p-3 font-medium sticky left-0 bg-background">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8 bg-primary text-primary-foreground text-xs">
+                                  <AvatarFallback>{student.avatar}</AvatarFallback>
+                                </Avatar>
+                                <span>{student.name}</span>
                               </div>
-                              <div>
-                                <Label>Оценка</Label>
-                                <Select
-                                  value={String(newGrade.value)}
-                                  onValueChange={(value) => setNewGrade({ ...newGrade, value: parseInt(value) })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="5">5 (отлично)</SelectItem>
-                                    <SelectItem value="4">4 (хорошо)</SelectItem>
-                                    <SelectItem value="3">3 (удовлетворительно)</SelectItem>
-                                    <SelectItem value="2">2 (неудовлетворительно)</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <Label>Дата</Label>
-                                <Input
-                                  type="date"
-                                  value={newGrade.date}
-                                  onChange={(e) => setNewGrade({ ...newGrade, date: e.target.value })}
-                                />
-                              </div>
-                              <div>
-                                <Label>Комментарий (необязательно)</Label>
-                                <Textarea
-                                  placeholder="Добавьте комментарий к оценке..."
-                                  value={newGrade.comment}
-                                  onChange={(e) => setNewGrade({ ...newGrade, comment: e.target.value })}
-                                />
-                              </div>
-                              <Button 
-                                className="w-full" 
-                                onClick={() => addGrade(student.id)}
-                              >
-                                Сохранить оценку
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        {student.grades.map((grade, idx) => (
-                          <div
-                            key={idx}
-                            className="group relative"
-                          >
-                            <Badge
-                              variant={grade.value >= 4 ? "default" : "secondary"}
-                              className="text-base px-3 py-1 cursor-pointer"
-                            >
-                              {grade.value}
-                            </Badge>
-                            {grade.comment && (
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-popover text-popover-foreground text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                                <p className="font-semibold mb-1">{grade.subject}</p>
-                                <p>{grade.comment}</p>
-                                <p className="text-muted-foreground mt-1">{grade.date}</p>
-                              </div>
-                            )}
-                          </div>
+                            </td>
+                            {allSubjects.map((subject, idx) => {
+                              const grades = getGradesBySubject(student, subject);
+                              return (
+                                <td key={idx} className="p-3 text-center border-x">
+                                  <div className="flex gap-1 justify-center flex-wrap">
+                                    {grades.length > 0 ? (
+                                      grades.map((grade, gIdx) => (
+                                        <div key={gIdx} className="group relative">
+                                          <div
+                                            className={`w-8 h-8 flex items-center justify-center rounded font-semibold text-sm cursor-pointer transition-all hover:scale-110 ${
+                                              grade.value === 5
+                                                ? 'bg-green-100 text-green-700 border border-green-300'
+                                                : grade.value === 4
+                                                ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                                                : grade.value === 3
+                                                ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                                                : 'bg-red-100 text-red-700 border border-red-300'
+                                            }`}
+                                          >
+                                            {grade.value}
+                                          </div>
+                                          {(grade.comment || grade.date) && (
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-popover text-popover-foreground text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 border">
+                                              {grade.comment && <p className="mb-1">{grade.comment}</p>}
+                                              <p className="text-muted-foreground">{grade.date}</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm">—</span>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            })}
+                            <td className="p-3 text-center font-semibold">
+                              <Badge variant="outline" className="text-base px-3 py-1">
+                                {calculateAverage(student.grades)}
+                              </Badge>
+                            </td>
+                          </tr>
                         ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
