@@ -23,66 +23,39 @@ interface Student {
 }
 
 const Index = () => {
-  const [students, setStudents] = useState<Student[]>([
-    {
-      id: 1,
-      name: 'Иванов Алексей',
-      class: '9А',
-      grades: [
-        { subject: 'Математика', value: 5, comment: 'Отлично решил контрольную', date: '2025-11-18' },
-        { subject: 'Русский язык', value: 4, date: '2025-11-15' },
-        { subject: 'Физика', value: 5, date: '2025-11-20' }
-      ],
-      attendance: [
-        { date: '2025-11-18', status: 'present' },
-        { date: '2025-11-19', status: 'present' },
-        { date: '2025-11-20', status: 'absent' }
-      ],
-      behavior: [
-        { date: '2025-11-18', note: 'Помог одноклассникам с задачей', type: 'positive' }
-      ],
-      avatar: 'ИА'
-    },
-    {
-      id: 2,
-      name: 'Петрова Мария',
-      class: '9А',
-      grades: [
-        { subject: 'Математика', value: 4, date: '2025-11-18' },
-        { subject: 'Русский язык', value: 5, comment: 'Отличное сочинение!', date: '2025-11-15' },
-        { subject: 'Физика', value: 4, date: '2025-11-20' }
-      ],
-      attendance: [
-        { date: '2025-11-18', status: 'present' },
-        { date: '2025-11-19', status: 'late' },
-        { date: '2025-11-20', status: 'present' }
-      ],
-      behavior: [],
-      avatar: 'ПМ'
-    },
-    {
-      id: 3,
-      name: 'Сидоров Дмитрий',
-      class: '9А',
-      grades: [
-        { subject: 'Математика', value: 3, comment: 'Нужно больше практики', date: '2025-11-18' },
-        { subject: 'Русский язык', value: 3, date: '2025-11-15' },
-        { subject: 'Физика', value: 4, date: '2025-11-20' }
-      ],
-      attendance: [
-        { date: '2025-11-18', status: 'late' },
-        { date: '2025-11-19', status: 'present' },
-        { date: '2025-11-20', status: 'present' }
-      ],
-      behavior: [
-        { date: '2025-11-19', note: 'Разговаривал на уроке', type: 'negative' }
-      ],
-      avatar: 'СД'
-    }
-  ]);
-
+  const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [newGrade, setNewGrade] = useState({ subject: '', value: 5, comment: '' });
+  const [newGrade, setNewGrade] = useState({ subject: '', value: 5, comment: '', date: new Date().toISOString().split('T')[0] });
+  const [newStudent, setNewStudent] = useState({ name: '', class: '' });
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [isAddGradeOpen, setIsAddGradeOpen] = useState(false);
+  const [isAddBehaviorOpen, setIsAddBehaviorOpen] = useState(false);
+  const [newBehavior, setNewBehavior] = useState({ note: '', type: 'positive' as 'positive' | 'negative', date: new Date().toISOString().split('T')[0] });
+  const [currentStudentId, setCurrentStudentId] = useState<number | null>(null);
+
+  const addStudent = () => {
+    if (!newStudent.name || !newStudent.class) return;
+    
+    const initials = newStudent.name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase();
+    
+    const newStudentData: Student = {
+      id: Date.now(),
+      name: newStudent.name,
+      class: newStudent.class,
+      grades: [],
+      attendance: [],
+      behavior: [],
+      avatar: initials
+    };
+    
+    setStudents([...students, newStudentData]);
+    setNewStudent({ name: '', class: '' });
+    setIsAddStudentOpen(false);
+  };
 
   const addGrade = (studentId: number) => {
     if (!newGrade.subject) return;
@@ -92,13 +65,53 @@ const Index = () => {
         ? {
             ...student,
             grades: [...student.grades, { 
-              ...newGrade, 
-              date: new Date().toISOString().split('T')[0] 
+              subject: newGrade.subject,
+              value: newGrade.value,
+              comment: newGrade.comment,
+              date: newGrade.date
             }]
           }
         : student
     ));
-    setNewGrade({ subject: '', value: 5, comment: '' });
+    setNewGrade({ subject: '', value: 5, comment: '', date: new Date().toISOString().split('T')[0] });
+    setIsAddGradeOpen(false);
+  };
+
+  const addAttendance = (studentId: number, status: 'present' | 'absent' | 'late') => {
+    setStudents(students.map(student => 
+      student.id === studentId 
+        ? {
+            ...student,
+            attendance: [...student.attendance, { 
+              date: new Date().toISOString().split('T')[0],
+              status
+            }]
+          }
+        : student
+    ));
+  };
+
+  const addBehaviorNote = (studentId: number) => {
+    if (!newBehavior.note) return;
+    
+    setStudents(students.map(student => 
+      student.id === studentId 
+        ? {
+            ...student,
+            behavior: [...student.behavior, { 
+              date: newBehavior.date,
+              note: newBehavior.note,
+              type: newBehavior.type
+            }]
+          }
+        : student
+    ));
+    setNewBehavior({ note: '', type: 'positive', date: new Date().toISOString().split('T')[0] });
+    setIsAddBehaviorOpen(false);
+  };
+
+  const deleteStudent = (studentId: number) => {
+    setStudents(students.filter(student => student.id !== studentId));
   };
 
   const calculateAverage = (grades: { value: number }[]) => {
@@ -121,14 +134,41 @@ const Index = () => {
             <p className="text-muted-foreground">Управление успеваемостью и посещаемостью</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" size="lg">
-              <Icon name="Calendar" className="mr-2" size={18} />
-              Расписание
-            </Button>
-            <Button variant="default" size="lg">
-              <Icon name="BookOpen" className="mr-2" size={18} />
-              Домашние задания
-            </Button>
+            <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
+              <DialogTrigger asChild>
+                <Button variant="default" size="lg">
+                  <Icon name="UserPlus" className="mr-2" size={18} />
+                  Добавить ученика
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Добавить нового ученика</DialogTitle>
+                  <DialogDescription>Введите данные ученика для добавления в журнал</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>ФИО ученика</Label>
+                    <Input
+                      placeholder="Иванов Иван Иванович"
+                      value={newStudent.name}
+                      onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Класс</Label>
+                    <Input
+                      placeholder="9А"
+                      value={newStudent.class}
+                      onChange={(e) => setNewStudent({ ...newStudent, class: e.target.value })}
+                    />
+                  </div>
+                  <Button className="w-full" onClick={addStudent}>
+                    Добавить ученика
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -195,6 +235,17 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="students" className="space-y-4 animate-fade-in">
+            {students.length === 0 ? (
+              <Card className="p-12 text-center">
+                <Icon name="Users" size={48} className="mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Нет учеников</h3>
+                <p className="text-muted-foreground mb-4">Добавьте первого ученика, чтобы начать работу с журналом</p>
+                <Button onClick={() => setIsAddStudentOpen(true)}>
+                  <Icon name="UserPlus" className="mr-2" size={18} />
+                  Добавить ученика
+                </Button>
+              </Card>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {students.map((student) => (
                 <Card key={student.id} className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
@@ -282,6 +333,7 @@ const Index = () => {
                 </Card>
               ))}
             </div>
+            )}
           </TabsContent>
 
           <TabsContent value="grades" className="space-y-4 animate-fade-in">
@@ -304,9 +356,12 @@ const Index = () => {
                             <p className="text-sm text-muted-foreground">Средний балл: {calculateAverage(student.grades)}</p>
                           </div>
                         </div>
-                        <Dialog>
+                        <Dialog open={isAddGradeOpen && currentStudentId === student.id} onOpenChange={(open) => {
+                          setIsAddGradeOpen(open);
+                          if (open) setCurrentStudentId(student.id);
+                        }}>
                           <DialogTrigger asChild>
-                            <Button size="sm">
+                            <Button size="sm" onClick={() => setCurrentStudentId(student.id)}>
                               <Icon name="Plus" className="mr-2" size={16} />
                               Добавить оценку
                             </Button>
@@ -318,22 +373,11 @@ const Index = () => {
                             <div className="space-y-4">
                               <div>
                                 <Label>Предмет</Label>
-                                <Select
+                                <Input
+                                  placeholder="Математика, Русский язык..."
                                   value={newGrade.subject}
-                                  onValueChange={(value) => setNewGrade({ ...newGrade, subject: value })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Выберите предмет" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Математика">Математика</SelectItem>
-                                    <SelectItem value="Русский язык">Русский язык</SelectItem>
-                                    <SelectItem value="Физика">Физика</SelectItem>
-                                    <SelectItem value="Химия">Химия</SelectItem>
-                                    <SelectItem value="История">История</SelectItem>
-                                    <SelectItem value="Литература">Литература</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                  onChange={(e) => setNewGrade({ ...newGrade, subject: e.target.value })}
+                                />
                               </div>
                               <div>
                                 <Label>Оценка</Label>
@@ -351,6 +395,14 @@ const Index = () => {
                                     <SelectItem value="2">2 (неудовлетворительно)</SelectItem>
                                   </SelectContent>
                                 </Select>
+                              </div>
+                              <div>
+                                <Label>Дата</Label>
+                                <Input
+                                  type="date"
+                                  value={newGrade.date}
+                                  onChange={(e) => setNewGrade({ ...newGrade, date: e.target.value })}
+                                />
                               </div>
                               <div>
                                 <Label>Комментарий (необязательно)</Label>
@@ -421,13 +473,13 @@ const Index = () => {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="default">
+                        <Button size="sm" variant="default" onClick={() => addAttendance(student.id, 'present')} title="Присутствует">
                           <Icon name="Check" size={16} />
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" onClick={() => addAttendance(student.id, 'late')} title="Опоздал">
                           <Icon name="Clock" size={16} />
                         </Button>
-                        <Button size="sm" variant="destructive">
+                        <Button size="sm" variant="destructive" onClick={() => addAttendance(student.id, 'absent')} title="Отсутствует">
                           <Icon name="X" size={16} />
                         </Button>
                       </div>
@@ -460,10 +512,61 @@ const Index = () => {
                             </p>
                           </div>
                         </div>
-                        <Button size="sm" variant="outline">
-                          <Icon name="Plus" className="mr-2" size={16} />
-                          Добавить
-                        </Button>
+                        <Dialog open={isAddBehaviorOpen && currentStudentId === student.id} onOpenChange={(open) => {
+                          setIsAddBehaviorOpen(open);
+                          if (open) setCurrentStudentId(student.id);
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="outline" onClick={() => setCurrentStudentId(student.id)}>
+                              <Icon name="Plus" className="mr-2" size={16} />
+                              Добавить
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Добавить замечание для {student.name}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label>Тип замечания</Label>
+                                <Select
+                                  value={newBehavior.type}
+                                  onValueChange={(value: 'positive' | 'negative') => setNewBehavior({ ...newBehavior, type: value })}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="positive">Позитивное</SelectItem>
+                                    <SelectItem value="negative">Негативное</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label>Дата</Label>
+                                <Input
+                                  type="date"
+                                  value={newBehavior.date}
+                                  onChange={(e) => setNewBehavior({ ...newBehavior, date: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <Label>Описание</Label>
+                                <Textarea
+                                  placeholder="Опишите ситуацию..."
+                                  value={newBehavior.note}
+                                  onChange={(e) => setNewBehavior({ ...newBehavior, note: e.target.value })}
+                                />
+                              </div>
+                              <Button 
+                                className="w-full" 
+                                onClick={() => addBehaviorNote(student.id)}
+                              >
+                                Сохранить замечание
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                       </div>
                       {student.behavior.length > 0 && (
                         <div className="space-y-2">
